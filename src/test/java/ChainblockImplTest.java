@@ -180,15 +180,15 @@ public class ChainblockImplTest {
     @Test
     public void testGetAllReceiversWithTransactionStatus_ShouldReturnSortedNames() {
         fillChainblockWithTransactions();
-        List<String> expectedTransactionSenders = transactions.stream()
+        List<String> expectedTransactionReceivers = transactions.stream()
                 .filter(t -> t.getStatus().equals(TransactionStatus.SUCCESSFUL))
                 .sorted(Comparator.comparing(Transaction::getAmount).reversed())
                 .map(Transaction::getTo)
                 .collect(Collectors.toList());
 
-        Iterable<String> actualTransactionReceivers = chainblock.getAllSendersWithTransactionStatus(TransactionStatus.SUCCESSFUL);
+        Iterable<String> actualTransactionReceivers = chainblock.getAllReceiversWithTransactionStatus(TransactionStatus.SUCCESSFUL);
 
-        assertEquals(expectedTransactionSenders, actualTransactionReceivers);
+        assertEquals(expectedTransactionReceivers, actualTransactionReceivers);
     }
 
 
