@@ -31,11 +31,15 @@ public class ChainblockImplTest {
         Transaction transaction2 = new TransactionImpl(2, TransactionStatus.UNAUTHORIZED, "Sasho", "Pesho", 11.0);
         Transaction transaction3 = new TransactionImpl(3, TransactionStatus.FAILED, "Toshko", "Sasho", 12.20);
         Transaction transaction4 = new TransactionImpl(4, TransactionStatus.SUCCESSFUL, "Sasho", "Pesho", 10.50);
+        Transaction transaction5 = new TransactionImpl(5, TransactionStatus.SUCCESSFUL, "Pesho", "Sasho", 14);
+        Transaction transaction6 = new TransactionImpl(6, TransactionStatus.SUCCESSFUL, "Toshko", "Sasho", 9);
         transactions.add(transaction);
         transactions.add(transaction1);
         transactions.add(transaction2);
         transactions.add(transaction3);
         transactions.add(transaction4);
+        transactions.add(transaction5);
+        transactions.add(transaction6);
     }
 
     @Test
@@ -48,7 +52,7 @@ public class ChainblockImplTest {
     }
 
     @Test
-    public void testAdd_ShouldNotAddDuplicateTransaction(){
+    public void testAdd_ShouldNotAddDuplicateTransaction() {
         chainblock.add(transactions.get(0));
         chainblock.add(transactions.get(0));
         assertEquals(1, chainblock.getCount());
@@ -191,6 +195,137 @@ public class ChainblockImplTest {
         assertEquals(expectedTransactionReceivers, actualTransactionReceivers);
     }
 
+    @Test
+    public void testGetAllInAmountRange_ShouldReturnTransactions() {
+        fillChainblockWithTransactions();
+        Iterable<Transaction> expectedTransactions = transactions.stream()
+                .filter(t -> t.getAmount() < 12 && t.getAmount() > 10)
+                .collect(Collectors.toList());
 
+        Iterable<Transaction> actualTransactions = chainblock.getAllInAmountRange(10, 12);
 
+        assertEquals(expectedTransactions, actualTransactions);
+
+    }
+
+    @Test
+    public void testGetAllInAmountRange_ShouldReturnEmptyCollectionNoSuchTransactions() {
+        fillChainblockWithTransactions();
+        Iterable<Transaction> expectedTransactions = transactions.stream()
+                .filter(t -> t.getAmount() < 1000 && t.getAmount() > 1100)
+                .collect(Collectors.toList());
+
+        Iterable<Transaction> actualTransactions = chainblock.getAllInAmountRange(1000, 1100);
+
+        assertEquals(expectedTransactions, actualTransactions);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testGetByReceiverAndAmountRange_ShouldThrowForNoSuchReceiver() {
+        fillChainblockWithTransactions();
+
+        chainblock.getByReceiverAndAmountRange("Ivan", 10, 12);
+
+    }
+
+    @Test
+    public void testGetByReceiverAndAmountRange_ShouldReturnTransactionInRangeReceiverSortedByAmount() {
+        fillChainblockWithTransactions();
+        List<Transaction> expectedTransactions = transactions.stream()
+                .filter(t -> t.getAmount() < 13 && t.getAmount() > 10)
+                .filter(t -> t.getTo().equals("Sasho"))
+                .sorted(Comparator.comparing(Transaction::getAmount).reversed())
+                .collect(Collectors.toList());
+
+        Iterable<Transaction> actualTransactions = chainblock.getByReceiverAndAmountRange("Sasho", 10, 13);
+        assertEquals(expectedTransactions, actualTransactions);
+    }
+
+    @Test
+    public void testGetAllOrderedByAmountDescendingThenById_ShouldReturnTransactions() {
+        fillChainblockWithTransactions();
+
+        List<Transaction> expectedTransactions = transactions.stream()
+                .sorted(Comparator.comparing(Transaction::getAmount).reversed().thenComparing(Transaction::getId))
+                .collect(Collectors.toList());
+
+        Iterable<Transaction> actualTransactions = chainblock.getAllOrderedByAmountDescendingThenById();
+
+        assertEquals(expectedTransactions, actualTransactions);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testGetByReceiverOrderedByAmountThenById_ShouldThrowForSuchTransaction() {
+        fillChainblockWithTransactions();
+
+        chainblock.getByReceiverOrderedByAmountThenById("Ivan");
+    }
+
+    @Test
+    public void testGetByReceiverOrderedByAmountThenById_ShouldReturnTransactions() {
+        fillChainblockWithTransactions();
+
+        Iterable<Transaction> expectedTransactions = transactions.stream()
+                .filter(t -> t.getTo().equals("Sasho"))
+                .sorted(Comparator.comparing(Transaction::getAmount).reversed().thenComparing(Transaction::getId))
+                .collect(Collectors.toList());
+
+        Iterable<Transaction> actualTransactions = chainblock.getByReceiverOrderedByAmountThenById("Sasho");
+
+        assertEquals(expectedTransactions, actualTransactions);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testGetBySenderOrderedByAmountDescending_ShouldThrowForSuchTransaction() {
+        fillChainblockWithTransactions();
+
+        chainblock.getBySenderOrderedByAmountDescending("Ivan");
+    }
+
+    @Test
+    public void testGetBySenderOrderedByAmountDescending_ShouldReturnSortedTransactions() {
+        fillChainblockWithTransactions();
+
+        Iterable<Transaction> expectedTransactions = transactions.stream()
+                .filter(t -> t.getFrom().equals("Pesho"))
+                .sorted(Comparator.comparing(Transaction::getAmount).reversed())
+                .collect(Collectors.toList());
+
+        Iterable<Transaction> actualTransactions = chainblock.getBySenderOrderedByAmountDescending("Pesho");
+        assertEquals(expectedTransactions, actualTransactions);
+    }
+
+    @Test
+    public void testGetByTransactionStatusAndMaximumAmount() {
+        fillChainblockWithTransactions();
+
+        Iterable<Transaction> expectedTransactions = transactions.stream()
+                .filter(t -> t.getStatus().equals(TransactionStatus.SUCCESSFUL) && t.getAmount() < 11)
+                .collect(Collectors.toList());
+
+        Iterable<Transaction> actualTransactions = chainblock.getByTransactionStatusAndMaximumAmount(TransactionStatus.SUCCESSFUL, 11);
+
+        assertEquals(expectedTransactions, actualTransactions);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testGetBySenderAndMinimumAmountDescending_ShouldThrowForMissingTransaction() {
+        fillChainblockWithTransactions();
+
+        chainblock.getBySenderAndMinimumAmountDescending("Ivan", 1000);
+    }
+
+    @Test
+    public void testGetBySenderAndMinimumAmountDescending_ShouldReturnSortedAndFilteredTransactions() {
+        fillChainblockWithTransactions();
+
+        Iterable<Transaction> expectedTransactions = transactions.stream()
+                .filter(t -> t.getFrom().equals("Pesho") && t.getAmount() > 10)
+                .sorted(Comparator.comparing(Transaction::getAmount).reversed())
+                .collect(Collectors.toList());
+
+        Iterable<Transaction> actualTransactions = chainblock.getBySenderAndMinimumAmountDescending("Pesho", 10);
+
+        assertEquals(expectedTransactions, actualTransactions);
+    }
 }

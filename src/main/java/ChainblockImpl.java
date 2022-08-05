@@ -1,7 +1,7 @@
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class ChainblockImpl implements Chainblock{
+public class ChainblockImpl implements Chainblock {
     private Map<Integer, Transaction> transactionMap;
 
     public ChainblockImpl() {
@@ -59,9 +59,9 @@ public class ChainblockImpl implements Chainblock{
     }
 
     private List<Transaction> convertIterableToList(Iterable<Transaction> iterable) {
-        List<Transaction> list =new ArrayList<>();
+        List<Transaction> list = new ArrayList<>();
 
-        iterable.forEach(item ->list.add(item));
+        iterable.forEach(item -> list.add(item));
         return list;
     }
 
@@ -73,31 +73,73 @@ public class ChainblockImpl implements Chainblock{
     }
 
     public Iterable<Transaction> getAllOrderedByAmountDescendingThenById() {
-        return null;
+        return transactionMap.values().stream()
+                .sorted(Comparator.comparing(Transaction::getAmount).reversed().thenComparing(Transaction::getId))
+                .collect(Collectors.toList());
+
     }
 
     public Iterable<Transaction> getBySenderOrderedByAmountDescending(String sender) {
-        return null;
+        List<Transaction> result = transactionMap.values()
+                .stream()
+                .filter(t -> t.getFrom().equals(sender))
+                .sorted(Comparator.comparing(Transaction::getAmount).reversed())
+                .collect(Collectors.toList());
+        if (result.size() == 0) {
+            throw new IllegalArgumentException();
+        }
+        return result;
     }
 
     public Iterable<Transaction> getByReceiverOrderedByAmountThenById(String receiver) {
-        return null;
+        List<Transaction> sortedTransactions = convertIterableToList(getAllOrderedByAmountDescendingThenById());
+        List<Transaction> result = sortedTransactions.stream()
+                .filter(t -> t.getTo().equals(receiver))
+                .collect(Collectors.toList());
+
+        if (result.size() == 0) {
+            throw new IllegalArgumentException();
+        }
+        return result;
     }
 
     public Iterable<Transaction> getByTransactionStatusAndMaximumAmount(TransactionStatus status, double amount) {
-        return null;
+        return transactionMap.values()
+                .stream()
+                .filter(t -> t.getStatus().equals(status) && t.getAmount() < amount).collect(Collectors.toList());
     }
 
     public Iterable<Transaction> getBySenderAndMinimumAmountDescending(String sender, double amount) {
-        return null;
+        List<Transaction> result = transactionMap.values()
+                .stream()
+                .filter(t -> t.getFrom().equals(sender) && t.getAmount() > amount)
+                .sorted(Comparator.comparing(Transaction::getAmount).reversed())
+                .collect(Collectors.toList());
+
+        if (result.size() == 0) {
+            throw new IllegalArgumentException();
+        }
+        return result;
     }
 
     public Iterable<Transaction> getByReceiverAndAmountRange(String receiver, double lo, double hi) {
-        return null;
+        List<Transaction> transactionsByRange = convertIterableToList(getAllInAmountRange(lo, hi));
+        List<Transaction> transactionsByRangeAndReceiver = transactionsByRange.stream()
+                .filter(t -> t.getTo().equals(receiver))
+                .sorted(Comparator.comparing(Transaction::getAmount).reversed())
+                .collect(Collectors.toList());
+
+        if (transactionsByRangeAndReceiver.size() == 0) {
+            throw new IllegalArgumentException();
+        }
+        return transactionsByRangeAndReceiver;
     }
 
     public Iterable<Transaction> getAllInAmountRange(double lo, double hi) {
-        return null;
+        return transactionMap.values()
+                .stream()
+                .filter(t -> t.getAmount() < hi && t.getAmount() > lo)
+                .collect(Collectors.toList());
     }
 
     public Iterator<Transaction> iterator() {
@@ -105,7 +147,7 @@ public class ChainblockImpl implements Chainblock{
     }
 
     private void checkForTransactionThrow(int id) {
-        if(!transactionMap.containsKey(id)) {
+        if (!transactionMap.containsKey(id)) {
             throw new IllegalArgumentException();
         }
     }
